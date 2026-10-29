@@ -1,54 +1,97 @@
 # T7Difficulty
 
-A lightweight **TEKKEN 7** mod for choosing the CPU difficulty in **Treasure Battle** without replacing the mode, changing its opponent selection, or installing a different AI system.
+A lightweight, configurable **TEKKEN 7 Treasure Battle** mod. Adjust the CPU difficulty, the number of rounds required to win, and which special battles can appear — **without replacing Treasure Battle or installing a new AI system**.
 
 ## Features
 
-- Choose **Default, Easy, Medium, Hard, Very Hard, or Ultra Hard** for Treasure Battle.
-- **Default** leaves the game's original Treasure Battle difficulty scaling untouched.
-- Small in-game **D3D11 overlay**, displayed while the main Options screen is open.
-- Controller and keyboard navigation.
-- Saves your selected difficulty to `T7Difficulty.ini`.
+### CPU difficulty
 
-> **Version note:** The current `main` branch contains the difficulty selector. Round-count and special-battle controls are not yet present in the published `main` source. This README can be updated when those additions are merged.
+Choose from **Default, Easy, Medium, Hard, Very Hard, or Ultra Hard**.
+
+**Default** preserves the original Treasure Battle difficulty scaling. The other settings use the game's existing AI difficulty profiles.
+
+### Rounds to win
+
+Choose **Default** (the game's usual two rounds) or **1–5** rounds required to win a match in Treasure Battle.
+
+### Special battles
+
+Choose which types of special encounters to suppress:
+
+| Setting | Effect |
+| --- | --- |
+| **Vanilla** | Original Treasure Battle encounter selection |
+| **No Turbo** | Suppress Turbo Battle |
+| **No Double Damage** | Suppress Double Damage Battle |
+| **No Turbo & Double Damage** | Suppress both of those battle types |
+| **Disabled** | Suppress the identified special encounters: bosses, Double Damage, Turbo, Aerial Juggle, and Heist |
+
+Suppressed encounters are converted to normal fights. The mod does not directly modify character selection, ranks, or reward logic; however, disabling special encounters may also remove opportunities for rewards tied to those encounters.
+
+## In-game controls
+
+Open the game's main **Options** screen to display the compact D3D11 overlay with three rows: **CPU Difficulty**, **Rounds**, and **Special Battles**.
+
+- **L3 / TAB**: select the next row.
+- **L1 / LB / Z**: previous value.
+- **R1 / RB / X**: next value.
+
+Changes are saved to `T7Difficulty.ini` when leaving Options. Input is accepted only while the game window is focused and Options is open.
 
 ## Installation
 
-1. Build the solution in **Visual Studio 2022**, using **x64** (Debug or Release).
-2. Locate the directory containing `TekkenGame-Win64-Shipping.exe`, usually `TEKKEN 7/TekkenGame/Binaries/Win64/`.
-3. **Back up any existing `XINPUT1_3.dll`** in that directory.
-4. Copy the generated `XINPUT1_3.dll` into the same directory.
-5. Start the game, open **Options**, and use the on-screen selector.
+**Requirements:** Windows x64, TEKKEN 7 with a compatible executable, and (to build from source) Visual Studio 2022 with the Desktop C++ workload, MSVC v143 and Windows SDK.
 
-Use **L1/LB** or **Z** to select the previous difficulty, and **R1/RB** or **X** to select the next one. Your choice is saved when you leave Options.
+1. Build `T7Difficulty.sln` in **x64 Release** (or x64 Debug for diagnostics).
+2. Find the folder containing `TekkenGame-Win64-Shipping.exe`, normally `TEKKEN 7/TekkenGame/Binaries/Win64/`.
+3. Back up any existing `XINPUT1_3.dll` in that folder.
+4. Place the generated `XINPUT1_3.dll` alongside the game executable and launch the game.
+5. Open **Options** to configure the three settings.
 
-The mod also builds a `T7Difficulty.dll` for manual injection if the XInput proxy isn't loaded. See [BUILD_AND_INSTALL.txt](BUILD_AND_INSTALL.txt) for detailed build and troubleshooting instructions.
+The build also produces `T7Difficulty.dll`, an alternative manual-injection filename for the same mod. **Do not load both DLLs at once.** See [BUILD_AND_INSTALL.txt](BUILD_AND_INSTALL.txt) for full troubleshooting and verification notes.
 
 ## Configuration
-
-The mod creates/reads `T7Difficulty.ini` next to its loaded DLL:
 
 ```ini
 [Difficulty]
 TreasureBattle=0
+
+[TreasureBattle]
+Rounds=0
+SpecialFights=0
 ```
 
-Values: `0` Default, `1` Easy, `2` Medium, `3` Hard, `4` Very Hard, `5` Ultra Hard.
+| Key | Values |
+| --- | --- |
+| `[Difficulty] TreasureBattle` | `0` Default, `1` Easy, `2` Medium, `3` Hard, `4` Very Hard, `5` Ultra Hard |
+| `[TreasureBattle] Rounds` | `0` Default, `1–5` rounds to win |
+| `[TreasureBattle] SpecialFights` | `0` Vanilla, `1` No Turbo, `2` No Double Damage, `3` No Turbo & Double Damage, `4` Disabled |
 
-## Compatibility
+Missing settings default to their original (Vanilla) behavior, so existing difficulty-only INI files remain compatible.
 
-This is a **version-sensitive** mod: it checks the original instructions at its hook locations and refuses incompatible hooks rather than patching unknown code. Compatibility with every TEKKEN 7 executable is **not** guaranteed. It does not modify the game executable on disk.
+## Executable compatibility
+
+This mod uses runtime instruction hooks and **does not patch the game executable on disk**.
+
+- The original CPU difficulty hooks validate their expected instruction bytes.
+- The newer rounds and special-battle hooks target a **specific 2021 x64 executable** and validate its build and instruction context before installation.
+- If the additional hooks cannot be safely installed, the extensions remain disabled while the original difficulty functionality is retained where its own hooks are compatible.
+- No Steam client or Ghost Battle DLL is required to run the mod.
+
+**Not a universal TEKKEN 7 patch:** the newer features are not guaranteed to work on the final Steam 2023 build or on other executables without porting and verification. Check `T7Difficulty.log` for hook installation diagnostics.
+
+**Testing status:** the new functionality has static checks and documented reverse-engineering validation, but its in-game behavior — especially first/subsequent match rounds and special-encounter transitions — still requires runtime testing. See [BUILD_AND_INSTALL.txt](BUILD_AND_INSTALL.txt) for the test checklist.
 
 ## Credits and acknowledgements
 
 Special thanks to **[NobodyCatchMe-AZ92](https://github.com/NobodyCatchMe-AZ92)**, creator of **[T7 Ghost AI + Ghost Battle Mode](https://github.com/NobodyCatchMe-AZ92/T7-Ghost-AI)**.
 
-Their reverse-engineering research into TEKKEN 7's Treasure Battle mechanics provided valuable technical insights for the development of the **round-count and special-fight options** for T7Difficulty.
+Their extensive reverse-engineering work on TEKKEN 7's Treasure Battle mechanics provided valuable technical insights for the **round-count and special-fight options** implemented here.
 
-T7Difficulty is an **independent project**. It does not require the Ghost Battle mod or its AI system.
+T7Difficulty is an independent project. It does **not** require, include, or replace the Ghost Battle mod or its AI system.
 
-The T7 Ghost AI project is distributed under the **MIT License**, copyright © 2026 NobodyCatchMe-AZ92. Consult [its license](https://github.com/NobodyCatchMe-AZ92/T7-Ghost-AI/blob/main/LICENSE) when reusing its code: copying substantial portions requires retaining the copyright and permission notices.
+The referenced project is distributed under the [MIT License](https://github.com/NobodyCatchMe-AZ92/T7-Ghost-AI/blob/main/LICENSE), copyright © 2026 NobodyCatchMe-AZ92. When reusing code from that project, retain the applicable copyright and permission notices as required by its license.
 
 ## Disclaimer
 
-Unofficial fan-made modification. Not affiliated with or endorsed by Bandai Namco Entertainment.
+Unofficial fan-made modification, not affiliated with or endorsed by Bandai Namco Entertainment.
