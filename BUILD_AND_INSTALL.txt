@@ -164,10 +164,11 @@ SHA256 was checked offline; runtime validates timestamp and instruction bytes.
 Entry 437A60: push rbx/rdi/r12/r15; sub rsp,28; context preserves RDX in R15.
 Calls 437DDE and 438F49: argument setup EDX=2; CALL 2C90A0.
 Setter 2C90A0: mov [rcx+A0],edx; ret. Setter is validated, never hooked.
-Only these Treasure call sites are intercepted, additionally gated by Treasure mode.
+Only these Treasure call sites are intercepted, round changes additionally check the actual battle config mode (0x0B).
 Any validation/installation failure disables the extension group, preserving difficulty.
 No EXE on disk is changed; no Steam or dinput8 dependency is added.
-Debug logs hook installation, actual encounter changes and actual round overrides.
+Release and Debug log each encounter/filter result and each rounds call with actual config mode,
+cached AI mode, requested rounds and old/new values. Debug also logs hook addresses.
 
 VERIFICATION / MANUAL TESTS STILL REQUIRED
 ------------------------------------------
@@ -194,3 +195,21 @@ Build x64 Release and copy XINPUT1_3.dll beside TekkenGame-Win64-Shipping.exe.
 T7Difficulty.dll is the identical manual-injection alias; load only one copy.
 Preserve an existing T7Difficulty.ini (missing keys default to Vanilla).
 Close Tekken 7 before replacing a loaded DLL. No GitHub release or merge is required.
+
+ROUNDS CORRECTION - 2026-10-29
+------------------------------
+User runtime report: Rounds=1 remained two rounds in the first implementation.
+Installed hooks and INI were confirmed. The new Treasure hooks must not depend on
+cached g_isTreasure: that flag belongs to the later AI difficulty routine.
+Rounds now check [RCX] of the actual battle config. Disassembly confirms initial
+Treasure setup calls 793AA0(config, 0x0B), a mov [rcx],edx setter, before assigning
+rounds. Both that setter and its initial-call context are additionally validated.
+Special filtering uses only the verified Treasure-only next-fight entry.
+Difficulty hooks and their original cached-mode behavior remain unchanged.
+No artificial special encounters are forced. T7Difficulty.log records the natural
+input type and whether the selected filter changed it; an unchanged normal type 0
+is not evidence that a special was filtered. Wait for type 4/5 in that log to confirm.
+Restart the game after installing this correction. With Rounds=1 start a NEW Treasure
+fight and check the rounds log: configMode=0xB and 2 -> 1 are expected. Then verify
+one won round ends the match. Initial and subsequent fights both require testing.
+This correction is compiled/static-tested; runtime confirmation is still pending.

@@ -15,7 +15,7 @@ Completed checks:
   checked only. Pointer writes require committed writable aligned memory, a known
   suppressed type and SEH protection. Unknown types are preserved.
 - New hook validation/installation failure returns without resetting original hooks.
-- All new callbacks additionally require the existing Treasure mode gate.
+- Superseded by the rounds correction below: new callbacks no longer depend on the AI cache.
 - Input edge history is updated even outside Options or while unfocused, preventing
   a held button from becoming a new press merely when focus returns.
 - Legacy difficulty INI key is retained, new missing/invalid values use zero.
@@ -41,3 +41,33 @@ Final outputs: build/Debug and build/Release. Existing tracked build products we
 restored to keep this branch's review focused on source, tests and documentation.
 No merge, remote push or GitHub release was performed.
 
+
+Rounds correction review - 2026-10-29
+-------------------------------------
+Runtime user report invalidated the first in-game expectation for Rounds=1.
+Log inspection established hooks installed and persisted Rounds=1. The cached AI
+mode gate was not valid for early setup. This is the identified timing defect;
+its contribution to the observed failure still needs runtime log confirmation.
+New round callbacks read the actual config mode with SEH, require 0x0B and original
+RDX=2; no global hook is added. Special filtering stays at the Treasure-only entry.
+Additional signatures validate 793AA0's mode write and initial mode-call context.
+Regression assertions cover all round values with mode 0x0B, no-op modes 0..0x20
+except Treasure, unreadable-mode sentinel, invalid rounds and original values !=2.
+Release diagnostics now expose cached AI mode versus actual config mode and the
+round mutation, plus every naturally observed encounter and filter result.
+No deterministic encounter forcing or character/reward/rank override is added.
+Manual runtime confirmation remains required. Difficulty code is unchanged.
+Correction: Debug and Release build/static assertions passed. Installed DLL SHA256: 13F2F5E8FDAE52BEF9AE5DE1C69E0B673E6A6313B9DEB68BD92BA3CFA96AE5D7. Game not launched by agent.
+
+Reference comparison for rounds correction:
+- Re-read ghostbattle.hpp main, blob 0db93bd3d73e34a511047cac154cdb6aa983670c.
+- next_hook invokes g_next_orig first, then apply(type). apply obtains battle_cfg
+  and calls kFnCfgSetRounds(cfg, opt) for values 1..5, writing cfg+0xA0.
+- The reference's battle_cfg obtains the manager virtual result and adds 0x10.
+- Local disassembly: 1E01960 is lea rax,[rcx+0x10]; ret, so our RCX at the
+  verified calls is that same battle-settings object. 7DD400 reads [rcx], and
+  793AA0 writes [rcx]=edx, confirming the direct mode field used by the fix.
+- Reference RVA 1810EE0 is unrelated code in this NoDVD and must not be called.
+- Retained the requested two local call-site MidHooks rather than copying the
+  reference's post-call Ghost Battle machinery. Both write the actual rounds field
+  through the game's verified local setter. Runtime result remains unconfirmed.

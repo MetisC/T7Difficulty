@@ -13,11 +13,13 @@ constexpr bool CheckPolicies()
     for (int rounds = 0; rounds <= 5; ++rounds)
     {
         if (!ValidRounds(rounds)) return false;
-        if (RoundValue(rounds, 2, true) != (rounds == 0 ? 2 : rounds)) return false;
-        if (RoundValue(rounds, 2, false) != 2) return false;
-        if (RoundValue(rounds, 3, true) != 3) return false;
+        if (RoundValue(rounds, 2, 0x0B) != (rounds == 0 ? 2 : rounds)) return false;
+        for (unsigned mode = 0; mode <= 0x20; ++mode)
+            if (mode != 0x0B && RoundValue(rounds, 2, mode) != 2) return false;
+        if (RoundValue(rounds, 2, 0xFFFFFFFFu) != 2) return false;
+        if (RoundValue(rounds, 3, 0x0B) != 3) return false;
     }
-    if (RoundValue(-1, 2, true) != 2 || RoundValue(6, 2, true) != 2) return false;
+    if (RoundValue(-1, 2, 0x0B) != 2 || RoundValue(6, 2, 0x0B) != 2) return false;
     for (int policy = 0; policy <= 4; ++policy)
     {
         if (NextSpecial(policy, 1) != (policy + 1) % 5) return false;

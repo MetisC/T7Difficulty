@@ -2,9 +2,9 @@
 namespace TreasurePolicy
 {
 constexpr bool ValidRounds(int rounds) { return rounds >= 0 && rounds <= 5; }
-constexpr int RoundValue(int configured, int original, bool treasure)
+constexpr int RoundValue(int configured, int original, unsigned battleMode)
 {
-    return treasure && original == 2 && ValidRounds(configured) && configured != 0 ? configured : original;
+    return battleMode == 0x0B && original == 2 && ValidRounds(configured) && configured != 0 ? configured : original;
 }
 // Disabled uses 4 because 2 is already No Double Damage.
 constexpr bool Suppress(int policy, int type)

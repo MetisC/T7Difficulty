@@ -678,35 +678,51 @@ static bool FilterEncounter(uintptr_t address, int policy)
     {
         auto* type = reinterpret_cast<int32_t*>(address);
         const int old = *type;
-        if (!TreasurePolicy::Suppress(policy, old)) return false;
+        if (!TreasurePolicy::Suppress(policy, old))
+        {
+            wchar_t message[128]{};
+            swprintf_s(message, L"TREASURE special type=%d unchanged | policy=%d", old, policy);
+            Log(message);
+            return false;
+        }
         *type = 0;
-#ifdef _DEBUG
         wchar_t message[128]{};
-        swprintf_s(message, L"TREASURE type %d -> 0 | policy=%d", old, policy);
+        swprintf_s(message, L"TREASURE special type=%d -> 0 | policy=%d", old, policy);
         Log(message);
-#endif
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
+// Unlike the AI resolver, these sites run while the next battle is being prepared.
+// The cached AI-mode flag can still describe the previous battle at this point.
 static void SpecialFightHook(safetyhook::Context& ctx)
 {
-    if (g_isTreasure.load()) FilterEncounter(ctx.rdx, g_specialFights.load());
+    // This verified entry belongs exclusively to Treasure's next-fight routine.
+    FilterEncounter(ctx.rdx, g_specialFights.load());
+}
+
+static uint32_t ReadBattleMode(uintptr_t config)
+{
+    if (config < 0x10000 || config % alignof(uint32_t) != 0) return 0xFFFFFFFFu;
+    __try { return *reinterpret_cast<const uint32_t*>(config); }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return 0xFFFFFFFFu; }
 }
 
 static void RoundsHook(safetyhook::Context& ctx)
 {
-    const int rounds = g_rounds.load();
-    if (ctx.rdx == 2 && TreasurePolicy::RoundValue(rounds, 2, g_isTreasure.load()) != 2)
-    {
-        ctx.rdx = static_cast<uint64_t>(rounds);
-#ifdef _DEBUG
-        wchar_t message[80]{};
-        swprintf_s(message, L"TREASURE rounds 2 -> %d", rounds);
-        Log(message);
-#endif
-    }
+    const int configured = g_rounds.load();
+    // The initial Treasure path calls 793AA0(config, 0x0B), which writes [config],
+    // immediately before this hook. Check the actual setter's RCX, not the AI cache.
+    const uint32_t mode = ReadBattleMode(ctx.rcx);
+    const uint64_t original = ctx.rdx;
+    if (original == 2)
+        ctx.rdx = static_cast<uint64_t>(TreasurePolicy::RoundValue(configured, 2, mode));
+    wchar_t message[192]{};
+    swprintf_s(message, L"TREASURE rounds | configured=%d | configMode=0x%X | cachedAI=%d | %llu -> %llu",
+        configured, mode, g_isTreasure.load() ? 1 : 0,
+        static_cast<unsigned long long>(original), static_cast<unsigned long long>(ctx.rdx));
+    Log(message);
 }
 
 static void InstallTreasureHooks(uintptr_t base)
@@ -715,6 +731,8 @@ static void InstallTreasureHooks(uintptr_t base)
     static constexpr unsigned char entry[] = {0x40,0x53,0x57,0x41,0x54,0x41,0x57,0x48,0x83,0xEC,0x28,0x48,0x8B,0x1D,0xC6,0x34,0x09,0x03,0x4D,0x8B,0xE0,0x4C,0x8B,0xFA,0x48,0x8B,0xF9};
     static constexpr unsigned char regular[] = {0xBA,2,0,0,0,0x48,0x8B,0xC8,0x48,0x8B,0xD8,0xE8,0xBD,0x12,0xE9,0xFF};
     static constexpr unsigned char initial[] = {0xBA,2,0,0,0,0xC7,0x83,0x78,0x09,0,0,0,0,0,0,0x48,0x8B,0xCB,0xE8,0x52,0x01,0xE9,0xFF};
+    static constexpr unsigned char modeSetter[] = {0x89,0x11,0xC3};
+    static constexpr unsigned char initialMode[] = {0xBA,0x0B,0,0,0,0x48,0x8B,0xC8,0x48,0x8B,0xD8,0xE8,0x69,0xAB,0x35,0};
     static constexpr unsigned char setter[] = {0x89,0x91,0xA0,0,0,0,0xC3};
     const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(base + dos->e_lfanew);
@@ -722,7 +740,9 @@ static void InstallTreasureHooks(uintptr_t base)
         !MemoryMatches(base+0x437A60, entry, sizeof(entry)) ||
         !MemoryMatches(base+0x437DD3, regular, sizeof(regular)) ||
         !MemoryMatches(base+0x438F37, initial, sizeof(initial)) ||
-        !MemoryMatches(base+0x2C90A0, setter, sizeof(setter)))
+        !MemoryMatches(base+0x2C90A0, setter, sizeof(setter)) ||
+        !MemoryMatches(base+0x793AA0, modeSetter, sizeof(modeSetter)) ||
+        !MemoryMatches(base+0x438F27, initialMode, sizeof(initialMode)))
     {
         Log(L"Treasure extensions disabled: executable/context mismatch. Original difficulty retained.");
         return;
