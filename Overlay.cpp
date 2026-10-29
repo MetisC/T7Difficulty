@@ -41,6 +41,9 @@ namespace
 
     const std::atomic<bool>* g_inOptions = nullptr;
     const std::atomic<int>* g_difficulty = nullptr;
+    const std::atomic<int>* g_rounds = nullptr;
+    const std::atomic<int>* g_specialFights = nullptr;
+    const std::atomic<int>* g_selectedRow = nullptr;
 
     OverlayLogFn g_log = nullptr;
 
@@ -186,6 +189,7 @@ namespace
         { '9', { 0x0E,0x11,0x11,0x0F,0x01,0x01,0x0E } },
 
         { '/', { 0x01,0x02,0x02,0x04,0x08,0x08,0x10 } },
+        { '&', { 0x0C,0x12,0x14,0x08,0x15,0x12,0x0D } },
         { '+', { 0x00,0x04,0x04,0x1F,0x04,0x04,0x00 } },
         { '-', { 0x00,0x00,0x00,0x1F,0x00,0x00,0x00 } },
         { '<', { 0x02,0x04,0x08,0x10,0x08,0x04,0x02 } },
@@ -1398,195 +1402,30 @@ namespace
                 2.0f
                 );
 
-        const float boxHeight =
-            142.0f;
-
-        const float left =
-            screenWidth -
-            margin -
-            boxWidth;
-
-        const float top =
-            margin;
-
-        const Color background =
+        const float left = screenWidth - margin - boxWidth;
+        const float top = margin;
+        const Color background{0.035f,0.045f,0.065f,0.90f};
+        const Color text{1,1,1,0.98f};
+        const Color muted{0.7f,0.7f,0.7f,1};
+        const Color accent = DifficultyColor(difficulty);
+        AddRect(vertices, screenWidth, screenHeight, left, top, boxWidth, 205, background);
+        const int selected = g_selectedRow->load();
+        const int rounds = g_rounds->load();
+        const int special = g_specialFights->load();
+        const char* roundNames[] = {"DEFAULT","1","2","3","4","5"};
+        const char* specialNames[] = {"VANILLA","NO TURBO","NO DOUBLE DAMAGE","NO TURBO & DOUBLE DAMAGE","DISABLED"};
+        const char* labels[] = {"CPU DIFFICULTY", "ROUNDS", "SPECIAL BATTLES"};
+        const char* values[] = {DifficultyName(difficulty), roundNames[rounds >= 0 && rounds <= 5 ? rounds : 0],
+            specialNames[special >= 0 && special <= 4 ? special : 0]};
+        for (int row = 0; row < 3; ++row)
         {
-            0.035f,
-            0.045f,
-            0.065f,
-            0.90f
-        };
-
-        const Color border =
-        {
-            1.0f,
-            1.0f,
-            1.0f,
-            0.22f
-        };
-
-        const Color header =
-        {
-            1.0f,
-            1.0f,
-            1.0f,
-            0.72f
-        };
-
-        const Color text =
-        {
-            1.0f,
-            1.0f,
-            1.0f,
-            0.98f
-        };
-
-        const Color accent =
-            DifficultyColor(
-                difficulty
-            );
-
-        AddRect(
-            vertices,
-            screenWidth,
-            screenHeight,
-            left,
-            top,
-            boxWidth,
-            boxHeight,
-            background
-        );
-
-        AddRect(
-            vertices,
-            screenWidth,
-            screenHeight,
-            left,
-            top,
-            boxWidth,
-            1.0f,
-            border
-        );
-
-        AddRect(
-            vertices,
-            screenWidth,
-            screenHeight,
-            left,
-            top +
-            boxHeight -
-            1.0f,
-            boxWidth,
-            1.0f,
-            border
-        );
-
-        AddRect(
-            vertices,
-            screenWidth,
-            screenHeight,
-            left,
-            top,
-            1.0f,
-            boxHeight,
-            border
-        );
-
-        AddRect(
-            vertices,
-            screenWidth,
-            screenHeight,
-            left +
-            boxWidth -
-            1.0f,
-            top,
-            1.0f,
-            boxHeight,
-            border
-        );
-
-        AddRect(
-            vertices,
-            screenWidth,
-            screenHeight,
-            left +
-            8.0f,
-            top +
-            10.0f,
-            5.0f,
-            boxHeight -
-            20.0f,
-            accent
-        );
-
-        AddText(
-            vertices,
-            screenWidth,
-            screenHeight,
-            left +
-            28.0f,
-            top +
-            15.0f,
-            "CPU DIFFICULTY  //  TREASURE BATTLE",
-            2.0f,
-            header
-        );
-
-        AddText(
-            vertices,
-            screenWidth,
-            screenHeight,
-            left +
-            28.0f,
-            top +
-            45.0f,
-            DifficultyName(
-                difficulty
-            ),
-            4.0f,
-            accent
-        );
-
-        AddRect(
-            vertices,
-            screenWidth,
-            screenHeight,
-            left +
-            28.0f,
-            top +
-            85.0f,
-            boxWidth -
-            48.0f,
-            1.0f,
-            border
-        );
-
-        static constexpr char controls[] =
-            "< L1 / LB / Z     R1 / RB / X >";
-
-        const float controlsPixel =
-            2.0f;
-
-        const float controlsWidth =
-            TextWidth(
-                controls,
-                controlsPixel
-            );
-
-        AddText(
-            vertices,
-            screenWidth,
-            screenHeight,
-            left +
-            (boxWidth -
-                controlsWidth) *
-            0.5f,
-            top +
-            104.0f,
-            controls,
-            controlsPixel,
-            text
-        );
+            const float y = top + 15 + row * 48.0f;
+            if (row == selected) AddRect(vertices, screenWidth, screenHeight, left + 8, y, 4, 36, accent);
+            AddText(vertices, screenWidth, screenHeight, left + 24, y, labels[row], 2, muted);
+            AddText(vertices, screenWidth, screenHeight, left + 24, y + 18, values[row], 2, row == selected ? accent : text);
+        }
+        AddText(vertices, screenWidth, screenHeight, left + 24, top + 164, "L1 / Z < VALUE > R1 / X", 2, text);
+        AddText(vertices, screenWidth, screenHeight, left + 24, top + 184, "L3 / TAB: SELECT ROW", 2, muted);
     }
 
     // ========================================================
@@ -2432,6 +2271,9 @@ bool OverlayInitialize(
     HMODULE ownerModule,
     const std::atomic<bool>* inOptions,
     const std::atomic<int>* difficulty,
+    const std::atomic<int>* rounds,
+    const std::atomic<int>* specialFights,
+    const std::atomic<int>* selectedRow,
     OverlayLogFn logFn
 )
 {
@@ -2451,12 +2293,13 @@ bool OverlayInitialize(
     g_difficulty =
         difficulty;
 
+    g_rounds = rounds; g_specialFights = specialFights; g_selectedRow = selectedRow;
     g_log =
         logFn;
 
     if (g_ownerModule == nullptr ||
         g_inOptions == nullptr ||
-        g_difficulty == nullptr)
+        g_difficulty == nullptr || rounds == nullptr || specialFights == nullptr || selectedRow == nullptr)
     {
         LogMessage(
             L"ERROR: OverlayInitialize received invalid state."

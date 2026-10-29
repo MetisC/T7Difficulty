@@ -9,6 +9,9 @@ bool OverlayInitialize(
     HMODULE ownerModule,
     const std::atomic<bool>* inOptions,
     const std::atomic<int>* difficulty,
+    const std::atomic<int>* rounds,
+    const std::atomic<int>* specialFights,
+    const std::atomic<int>* selectedRow,
     OverlayLogFn logFn
 );
 

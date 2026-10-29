@@ -1,0 +1,43 @@
+T7Difficulty Treasure extension review - 2026-10-29
+================================================
+Branch: codex/treasure-battle-controls, based on main (b2151f4).
+
+Completed checks:
+- Exact SHA256 and PE timestamp of the supplied local executable match the request.
+- Capstone x64 disassembly confirms entry 437A60 and its RDX preservation,
+  EDX=2 at 437DD3 and 438F37, calls at 437DDE/438F49 to 2C90A0,
+  and mov [rcx+A0],edx / ret at that setter.
+- Consulted reference ghostbattle.hpp via GitHub. Its Treasure entry uses different
+  RVAs (439340 etc.); none of its Ghost AI, menus, DLL or character code was imported.
+- Original GetPolicy, GameModeHook, FinalAiResolverHook and ChangeDifficulty
+  bodies were compared against main and are unchanged.
+- Only the requested three Treasure addresses receive new MidHooks. Setter is
+  checked only. Pointer writes require committed writable aligned memory, a known
+  suppressed type and SEH protection. Unknown types are preserved.
+- New hook validation/installation failure returns without resetting original hooks.
+- All new callbacks additionally require the existing Treasure mode gate.
+- Input edge history is updated even outside Options or while unfocused, preventing
+  a held button from becoming a new press merely when focus returns.
+- Legacy difficulty INI key is retained, new missing/invalid values use zero.
+- Five special policies cycle in both directions; Disabled=4 resolves the duplicated
+  value 2 in the original request. Rounds cycle 0-5.
+- Compile-time assertions cover each filter on types -2..10, round values 0-5,
+  invalid rounds, non-Treasure no-op, unexpected original rounds, and five-way cycling.
+- Final x64 Debug and Release builds succeeded with these assertions included.
+  No compiler warnings were emitted by the final builds. git diff --check passed.
+- Installation hashes for both DLL names equal the final Release proxy:
+  C224D420906E7447ED44789A127CCC8E9EB7863DA82FE67B6F79D9A1D188EC01
+- Previous installed mod and INI backed up under build/pre-install-backup.
+
+Review limitations:
+No game was launched and no visual/runtime/online tests were performed. In particular,
+initial-match Treasure gate timing, overlay layout, natural special distribution,
+round transitions, persistence and regression behavior require the manual checklist
+in BUILD_AND_INSTALL.txt. Static checks do not establish in-game correctness.
+The new compatibility gate checks timestamp and exact contexts, not a full runtime
+image hash. The original difficulty compatibility policy remains unchanged.
+
+Final outputs: build/Debug and build/Release. Existing tracked build products were
+restored to keep this branch's review focused on source, tests and documentation.
+No merge, remote push or GitHub release was performed.
+

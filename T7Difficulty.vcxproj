@@ -156,12 +156,16 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="OptionsDetector.h" />
     <ClInclude Include="Overlay.h" />
+    <ClInclude Include="TreasurePolicy.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="safetyhook.hpp" />
     <ClInclude Include="Zydis.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="tests\TreasurePolicyTests.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="OptionsDetector.cpp" />
     <ClCompile Include="Overlay.cpp" />
     <ClCompile Include="pch.cpp">

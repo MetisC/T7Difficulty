@@ -1,2 +1,9 @@
 [Difficulty]
 TreasureBattle=0
+
+[TreasureBattle]
+; 0=Default; 1-5=rounds required to win
+Rounds=0
+; 0=Vanilla, 1=No Turbo, 2=No Double Damage, 3=No Turbo & Double Damage, 4=Disabled
+; Overlay cycles through all five values (0-4).
+SpecialFights=0

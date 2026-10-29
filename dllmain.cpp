@@ -3,6 +3,7 @@
 #include "safetyhook.hpp"
 #include "Overlay.h"
 #include "OptionsDetector.h"
+#include "TreasurePolicy.h"
 
 #include <Windows.h>
 #include <Xinput.h>
@@ -12,6 +13,8 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <utility>
+#include <initializer_list>
 
 // ============================================================
 // GLOBALS
@@ -34,6 +37,8 @@ static std::atomic<uint32_t> g_lastGameMode{ 0xFFFFFFFFu };
 // 4 = Very Hard
 // 5 = Ultra Hard
 static std::atomic<int> g_difficulty{ 0 };
+static std::atomic<int> g_rounds{ 0 }, g_specialFights{ 0 }, g_selectedRow{ 0 };
+static safetyhook::MidHook g_specialHook{}, g_roundHook{}, g_initialRoundHook{};
 
 // ============================================================
 // TEKKEN 7 OFFSETS / PROVEN RUNTIME CONTRACT
@@ -508,7 +513,14 @@ static bool SaveDifficultyToIni()
     }
 #endif
 
-    return result != FALSE;
+    bool saved = result != FALSE;
+    for (const auto& option : { std::pair{ L"Rounds", g_rounds.load() },
+                               std::pair{ L"SpecialFights", g_specialFights.load() } })
+    {
+        swprintf_s(value, L"%d", option.second);
+        saved = (WritePrivateProfileStringW(L"TreasureBattle", option.first, value, path.c_str()) != FALSE) && saved;
+    }
+    return saved;
 }
 
 // ============================================================
@@ -653,6 +665,86 @@ static void FinalAiResolverHook(
 #endif
 }
 
+// Additional hooks are confined to verified Treasure call sites. No global setter hook.
+static bool FilterEncounter(uintptr_t address, int policy)
+{
+    if (address < 0x10000 || address % alignof(int32_t) != 0) return false;
+    MEMORY_BASIC_INFORMATION info{};
+    if (!VirtualQuery(reinterpret_cast<void*>(address), &info, sizeof(info)) ||
+        info.State != MEM_COMMIT || (info.Protect & (PAGE_GUARD | PAGE_NOACCESS)) ||
+        !(info.Protect & (PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) ||
+        address > reinterpret_cast<uintptr_t>(info.BaseAddress) + info.RegionSize - sizeof(int32_t)) return false;
+    __try
+    {
+        auto* type = reinterpret_cast<int32_t*>(address);
+        const int old = *type;
+        if (!TreasurePolicy::Suppress(policy, old)) return false;
+        *type = 0;
+#ifdef _DEBUG
+        wchar_t message[128]{};
+        swprintf_s(message, L"TREASURE type %d -> 0 | policy=%d", old, policy);
+        Log(message);
+#endif
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+
+static void SpecialFightHook(safetyhook::Context& ctx)
+{
+    if (g_isTreasure.load()) FilterEncounter(ctx.rdx, g_specialFights.load());
+}
+
+static void RoundsHook(safetyhook::Context& ctx)
+{
+    const int rounds = g_rounds.load();
+    if (ctx.rdx == 2 && TreasurePolicy::RoundValue(rounds, 2, g_isTreasure.load()) != 2)
+    {
+        ctx.rdx = static_cast<uint64_t>(rounds);
+#ifdef _DEBUG
+        wchar_t message[80]{};
+        swprintf_s(message, L"TREASURE rounds 2 -> %d", rounds);
+        Log(message);
+#endif
+    }
+}
+
+static void InstallTreasureHooks(uintptr_t base)
+{
+    // Verified 2021 NoDVD instruction contexts, including argument setup and call targets.
+    static constexpr unsigned char entry[] = {0x40,0x53,0x57,0x41,0x54,0x41,0x57,0x48,0x83,0xEC,0x28,0x48,0x8B,0x1D,0xC6,0x34,0x09,0x03,0x4D,0x8B,0xE0,0x4C,0x8B,0xFA,0x48,0x8B,0xF9};
+    static constexpr unsigned char regular[] = {0xBA,2,0,0,0,0x48,0x8B,0xC8,0x48,0x8B,0xD8,0xE8,0xBD,0x12,0xE9,0xFF};
+    static constexpr unsigned char initial[] = {0xBA,2,0,0,0,0xC7,0x83,0x78,0x09,0,0,0,0,0,0,0x48,0x8B,0xCB,0xE8,0x52,0x01,0xE9,0xFF};
+    static constexpr unsigned char setter[] = {0x89,0x91,0xA0,0,0,0,0xC3};
+    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+    const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(base + dos->e_lfanew);
+    if (nt->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 || nt->FileHeader.TimeDateStamp != 0x616E792F ||
+        !MemoryMatches(base+0x437A60, entry, sizeof(entry)) ||
+        !MemoryMatches(base+0x437DD3, regular, sizeof(regular)) ||
+        !MemoryMatches(base+0x438F37, initial, sizeof(initial)) ||
+        !MemoryMatches(base+0x2C90A0, setter, sizeof(setter)))
+    {
+        Log(L"Treasure extensions disabled: executable/context mismatch. Original difficulty retained.");
+        return;
+    }
+    // Roll back the extension group on failure; original difficulty hooks stay installed.
+    g_specialHook = safetyhook::create_mid(reinterpret_cast<void*>(base+0x437A60), SpecialFightHook);
+    if (g_specialHook) g_roundHook = safetyhook::create_mid(reinterpret_cast<void*>(base+0x437DDE), RoundsHook);
+    if (g_roundHook) g_initialRoundHook = safetyhook::create_mid(reinterpret_cast<void*>(base+0x438F49), RoundsHook);
+    if (!g_specialHook || !g_roundHook || !g_initialRoundHook)
+    {
+        g_initialRoundHook.reset(); g_roundHook.reset(); g_specialHook.reset();
+        Log(L"Treasure extensions disabled: hook installation failed. Original difficulty retained.");
+        return;
+    }
+#ifdef _DEBUG
+    LogAddress(L"Special encounter hook", base + 0x437A60);
+    LogAddress(L"Regular rounds hook", base + 0x437DDE);
+    LogAddress(L"Initial rounds hook", base + 0x438F49);
+#endif
+    Log(L"Treasure extensions installed: special=437A60, rounds=437DDE/438F49.");
+}
+
 // ============================================================
 // XINPUT
 // ============================================================
@@ -756,11 +848,13 @@ static bool InitializeXInput()
 
 static void GetShoulderState(
     bool& l1,
-    bool& r1
+    bool& r1,
+    bool& l3
 )
 {
     l1 = false;
     r1 = false;
+    l3 = false;
 
     if (g_xInputGetState == nullptr)
     {
@@ -780,6 +874,8 @@ static void GetShoulderState(
         {
             continue;
         }
+
+        l3 = l3 || (state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) != 0;
 
         l1 =
             l1 ||
@@ -851,12 +947,23 @@ static void ChangeDifficulty(
 #endif
 }
 
+static void ChangeSelection(int direction)
+{
+    const int row = g_selectedRow.load();
+    if (row == 0) { ChangeDifficulty(direction); return; }
+    auto& option = row == 1 ? g_rounds : g_specialFights;
+    const int current = option.load();
+    if (row == 1) option.store((current + direction + 6) % 6);
+    else option.store(TreasurePolicy::NextSpecial(current, direction));
+}
+
 static DWORD WINAPI InputThread(
     LPVOID
 )
 {
     bool oldPrevious = false;
     bool oldNext = false;
+    bool oldRow = false;
 
     while (g_running.load(
         std::memory_order_relaxed
@@ -864,11 +971,13 @@ static DWORD WINAPI InputThread(
     {
         bool l1 = false;
         bool r1 = false;
+        bool l3 = false;
 
         GetShoulderState(
             l1,
-            r1
+            r1, l3
         );
+        const bool row = l3 || (GetAsyncKeyState(VK_TAB) & 0x8000) != 0;
 
         const bool keyZ =
             (GetAsyncKeyState('Z') &
@@ -892,22 +1001,24 @@ static DWORD WINAPI InputThread(
         if (inOptions &&
             IsGameForeground())
         {
+            if (row && !oldRow) g_selectedRow.store((g_selectedRow.load() + 1) % 3);
             if (!(previous && next))
             {
                 if (previous &&
                     !oldPrevious)
                 {
-                    ChangeDifficulty(-1);
+                    ChangeSelection(-1);
                 }
 
                 if (next &&
                     !oldNext)
                 {
-                    ChangeDifficulty(+1);
+                    ChangeSelection(+1);
                 }
             }
         }
 
+        oldRow = row;
         oldPrevious =
             previous;
 
@@ -944,6 +1055,11 @@ static DWORD WINAPI MainThread(
     // INI
     // --------------------------------------------------------
 
+    const auto iniPath = GetIniPath();
+    const int rounds = GetPrivateProfileIntW(L"TreasureBattle", L"Rounds", 0, iniPath.c_str());
+    const int special = GetPrivateProfileIntW(L"TreasureBattle", L"SpecialFights", 0, iniPath.c_str());
+    g_rounds.store(TreasurePolicy::ValidRounds(rounds) ? rounds : 0);
+    g_specialFights.store(special >= 0 && special <= 4 ? special : 0);
     const int loadedDifficulty =
         LoadDifficultyFromIni();
 
@@ -1051,6 +1167,8 @@ static DWORD WINAPI MainThread(
     // XINPUT
     // --------------------------------------------------------
 
+    InstallTreasureHooks(base);
+
     if (InitializeXInput())
     {
 #ifdef _DEBUG
@@ -1089,6 +1207,7 @@ static DWORD WINAPI MainThread(
             g_hModule,
             &g_inOptions,
             &g_difficulty,
+            &g_rounds, &g_specialFights, &g_selectedRow,
             Log
         ))
     {
@@ -1205,6 +1324,7 @@ static DWORD WINAPI MainThread(
     OverlayShutdown();
     OptionsDetectorShutdown();
 
+    g_initialRoundHook.reset(); g_roundHook.reset(); g_specialHook.reset();
     g_finalAiHook.reset();
     g_modeHook.reset();
 
