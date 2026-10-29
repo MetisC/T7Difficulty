@@ -1408,7 +1408,9 @@ namespace
         const Color text{1,1,1,0.98f};
         const Color muted{0.7f,0.7f,0.7f,1};
         const Color accent = DifficultyColor(difficulty);
-        AddRect(vertices, screenWidth, screenHeight, left, top, boxWidth, 205, background);
+        AddRect(vertices, screenWidth, screenHeight, left, top, boxWidth, 235, background);
+        AddText(vertices, screenWidth, screenHeight, left + 24, top + 15, "TREASURE BATTLE OPTIONS", 2, text);
+        AddRect(vertices, screenWidth, screenHeight, left + 24, top + 37, boxWidth - 48, 1, accent);
         const int selected = g_selectedRow->load();
         const int rounds = g_rounds->load();
         const int special = g_specialFights->load();
@@ -1419,13 +1421,13 @@ namespace
             specialNames[special >= 0 && special <= 4 ? special : 0]};
         for (int row = 0; row < 3; ++row)
         {
-            const float y = top + 15 + row * 48.0f;
+            const float y = top + 45 + row * 48.0f;
             if (row == selected) AddRect(vertices, screenWidth, screenHeight, left + 8, y, 4, 36, accent);
             AddText(vertices, screenWidth, screenHeight, left + 24, y, labels[row], 2, muted);
             AddText(vertices, screenWidth, screenHeight, left + 24, y + 18, values[row], 2, row == selected ? accent : text);
         }
-        AddText(vertices, screenWidth, screenHeight, left + 24, top + 164, "L1 / Z < VALUE > R1 / X", 2, text);
-        AddText(vertices, screenWidth, screenHeight, left + 24, top + 184, "L3 / TAB: SELECT ROW", 2, muted);
+        AddText(vertices, screenWidth, screenHeight, left + 24, top + 194, "L1 / Z < VALUE > R1 / X", 2, text);
+        AddText(vertices, screenWidth, screenHeight, left + 24, top + 214, "L3 / TAB: SELECT ROW", 2, muted);
     }
 
     // ========================================================
