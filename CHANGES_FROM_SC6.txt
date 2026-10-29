@@ -1,0 +1,46 @@
+T7Difficulty - changes from SC6Difficulty
+=========================================
+
+BACKEND
+- Removed SC6 VariableAI and final Rank/Waza memory writes.
+- Added Tekken 7 game-mode mid-hook at exe+2600BA.
+- Treasure is cached when EAX == 0x0B.
+- Added Tekken 7 final AI resolver mid-hook at exe+70D009.
+- Forced difficulties modify R14D/R9D before movsxd rax,r9d.
+- Default performs no register modification.
+
+DIFFICULTY MAP
+- Default    = no intervention
+- Easy       = base 0 / profile 0
+- Medium     = base 1 / profile 5
+- Hard       = base 2 / profile 10
+- Very Hard  = base 3 / profile 17
+- Ultra Hard = base 4 / profile 19
+
+OPTIONS
+- Removed SC6 R1=14 structural detector.
+- Added T7 live Scaleform owner detector.
+- Uses the non-localized internal path:
+    mc.List1_Panel_mc.Panel6.OptionName_mc.DT_OptionName_mc
+  at owner+0x228 plus multiple structural validations.
+- Keeps a 500 ms exit-confirm debounce.
+
+UI / INPUT / PERSISTENCE
+- Same D3D11 overlay architecture.
+- Same L1/R1 (LB/RB) and Z/X selector logic.
+- Overlay title now says TREASURE BATTLE.
+- Normal -> Medium.
+- Legendary -> Ultra Hard.
+- SC6Difficulty.ini/log -> T7Difficulty.ini/log.
+- INI key:
+    [Difficulty]
+    TreasureBattle=N
+- Same save-on-every-Options-exit behaviour.
+
+BUILD / LOAD
+- Solution/project renamed T7Difficulty.
+- x64 solution configurations only.
+- Main output remains XINPUT1_3.dll for transparent proxy loading.
+- Post-build also copies the same binary to T7Difficulty.dll as a manual-
+  injection fallback.
+- Hook byte signatures are validated before SafetyHook is installed.

@@ -1,0 +1,55 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "H:\\Repositorios\\T7Difficulty\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{3930B83E-ED00-44CA-850A-DDF91F5D6C06}|T7Difficulty.vcxproj|H:\\Repositorios\\T7Difficulty\\OptionsDetector.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{3930B83E-ED00-44CA-850A-DDF91F5D6C06}|T7Difficulty.vcxproj|solutionrelative:OptionsDetector.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "OptionsDetector.cpp",
+              "DocumentMoniker": "H:\\Repositorios\\T7Difficulty\\OptionsDetector.cpp",
+              "RelativeDocumentMoniker": "OptionsDetector.cpp",
+              "ToolTip": "H:\\Repositorios\\T7Difficulty\\OptionsDetector.cpp",
+              "RelativeToolTip": "OptionsDetector.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-09-01T03:25:15.58Z",
+              "EditorCaption": ""
+            }
+          ]
+        },
+        {
+          "DockedWidth": 914,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{004be353-6879-467c-9d1e-9ac23cdf6d49}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

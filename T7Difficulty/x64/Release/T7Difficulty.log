@@ -1,0 +1,14 @@
+﻿  pch.cpp
+  dllmain.cpp
+  OptionsDetector.cpp
+  Overlay.cpp
+  XInputProxy.cpp
+  safetyhook.cpp
+  Zydis.c
+     Creando biblioteca H:\Repositorios\T7Difficulty\x64\Release\XINPUT1_3.lib y objeto H:\Repositorios\T7Difficulty\x64\Release\XINPUT1_3.exp
+  Generando código
+  Previous IPDB not found, fall back to full compilation.
+  All 1287 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Generación de código finalizada
+  T7Difficulty.vcxproj -> H:\Repositorios\T7Difficulty\x64\Release\XINPUT1_3.dll
+          1 archivo(s) copiado(s).

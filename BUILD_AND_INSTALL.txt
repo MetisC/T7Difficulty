@@ -1,0 +1,144 @@
+T7Difficulty - BUILD / INSTALL / FIRST TEST
+===========================================
+
+WHAT THIS VERSION DOES
+----------------------
+- Same project architecture as SC6Difficulty:
+  * XINPUT1_3 transparent proxy loader
+  * SafetyHook backend hooks
+  * D3D11 overlay only while Options is open
+  * L1/R1 (LB/RB) and Z/X selector
+  * INI load on startup
+  * INI save on every Options exit
+
+- TEKKEN 7 selector:
+  0 = Default       (NO intervention; vanilla Treasure scaling)
+  1 = Easy          base=0 profile=0
+  2 = Medium        base=1 profile=5
+  3 = Hard          base=2 profile=10
+  4 = Very Hard     base=3 profile=17
+  5 = Ultra Hard    base=4 profile=19
+
+- Treasure gate:
+  exe+2600BA, EAX == 0x0B
+
+- Final AI resolver:
+  exe+70D009, overrides R14D/R9D only when:
+    Treasure == true AND selected difficulty != Default
+
+- Options detection:
+  language-independent live Scaleform owner signature using
+  mc.List1_Panel_mc.Panel6.OptionName_mc.DT_OptionName_mc
+  plus structural validation.
+
+BUILD REQUIREMENTS
+------------------
+Visual Studio 2022 with:
+- Desktop development with C++
+- MSVC v143
+- Windows 10/11 SDK
+
+FIRST BUILD (recommended)
+-------------------------
+1. Open T7Difficulty.sln.
+2. Select:
+      Debug
+      x64
+   Do NOT build Win32/x86.
+3. Build -> Build Solution.
+4. Output directory is normally:
+      x64\Debug\
+5. The build produces:
+      XINPUT1_3.dll       <- drop-in proxy version
+      T7Difficulty.dll    <- identical binary, convenient manual-injection alias
+
+INSTALL AS XINPUT PROXY
+-----------------------
+1. Find the folder containing:
+      TekkenGame-Win64-Shipping.exe
+
+   Normally this is:
+      ...\TEKKEN 7\TekkenGame\Binaries\Win64\
+
+2. IMPORTANT: if that folder already contains XINPUT1_3.dll, back it up first.
+
+3. Copy the built XINPUT1_3.dll into that same folder.
+
+4. Start Tekken 7 normally.
+
+5. In the same folder as the loaded mod DLL you should get:
+      T7Difficulty.log
+
+   If NO T7Difficulty.log appears at all, the proxy was not loaded.
+   Do not debug the AI code in that case: it is only a loading/injection issue.
+
+MANUAL-INJECTION FALLBACK
+-------------------------
+The post-build step also creates T7Difficulty.dll.
+If your exact Tekken 7 build does not load the local XINPUT1_3 proxy, inject
+T7Difficulty.dll into TekkenGame-Win64-Shipping.exe with a 64-bit DLL loader.
+The mod logic is the same.
+
+FIRST FUNCTIONAL TEST
+---------------------
+1. Start the game and inspect T7Difficulty.log.
+   Expected core lines:
+      T7Difficulty loaded
+      Treasure mode hook installed.
+      Final AI resolver hook installed.
+      XInput initialized.
+      Options detector initialized.
+      Overlay hooks installed.
+      Initialization finished.
+
+2. Enter the main Options screen.
+   The overlay should appear in the top-right corner.
+
+3. Change the selector with:
+      L1 / LB / Z = previous
+      R1 / RB / X = next
+
+   Values:
+      DEFAULT
+      EASY
+      MEDIUM
+      HARD
+      VERY HARD
+      ULTRA HARD
+
+4. Exit Options.
+   T7Difficulty.ini is written/updated automatically:
+
+      [Difficulty]
+      TreasureBattle=N
+
+5. Re-enter Options and verify the selected value persisted.
+
+6. Set ULTRA HARD, exit Options, enter Treasure Battle and play.
+   The final resolver should use base=4/profile=19.
+
+7. For detailed first-run diagnostics, keep Debug x64:
+   the log additionally records mode transitions and final AI overrides.
+
+8. Once everything is confirmed, rebuild:
+      Release
+      x64
+   and replace the Debug DLL with x64\Release\XINPUT1_3.dll.
+
+IMPORTANT VERSION CHECK
+-----------------------
+The mod validates the two proven hook instructions before installing hooks:
+- exe+2600BA must begin with: 83 F8 05
+- exe+70D009 must begin with: 49 63 C1
+
+If your executable differs, T7Difficulty.log will report a signature mismatch
+and the mod will stop instead of hooking a wrong address.
+
+INI
+---
+The INI uses exactly one persistent selector value:
+
+  [Difficulty]
+  TreasureBattle=0
+
+0 means true vanilla/default behaviour: the final AI resolver is left alone.
